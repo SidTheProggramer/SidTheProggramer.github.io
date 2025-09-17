@@ -1,0 +1,63 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Medicare QR Scanner</title>
+<script src="https://unpkg.com/html5-qrcode/minified/html5-qrcode.min.js"></script>
+<style>
+  body { font-family: Arial, sans-serif; padding: 10px; }
+  h1 { text-align: center; }
+  #reader { width: 100%; max-width: 400px; margin: auto; }
+  #info { max-width: 400px; margin: 20px auto; padding: 10px; border: 1px solid #ccc; border-radius: 5px; background: #f9f9f9; }
+  .field { margin-bottom: 8px; }
+  .label { font-weight: bold; }
+</style>
+</head>
+<body>
+
+<h1>Medicare QR Scanner</h1>
+<div id="reader"></div>
+
+<h2>Patient Info:</h2>
+<div id="info"></div>
+
+<script>
+function onScanSuccess(decodedText, decodedResult) {
+  const infoDiv = document.getElementById('info');
+  infoDiv.innerHTML = '';
+
+ 
+  const fields = decodedText.split('_');
+
+  // Loop through each field and display
+  fields.forEach(field => {
+    if(field.trim() !== '') {
+      const div = document.createElement('div');
+      div.className = 'field';
+
+    
+      const parts = field.split(/:(.+)/); // split at first colon only
+      if(parts.length > 1) {
+        div.innerHTML = `<span class="label">${parts[0]}:</span> ${parts[1]}`;
+      } else {
+        div.textContent = field;
+      }
+
+      infoDiv.appendChild(div);
+    }
+  });
+}
+
+function onScanFailure(error) {
+  console.warn(`Scan failed: ${error}`);
+}
+
+// Initialize QR scanner
+let html5QrcodeScanner = new Html5QrcodeScanner(
+  "reader", { fps: 10, qrbox: 250 });
+html5QrcodeScanner.render(onScanSuccess, onScanFailure);
+</script>
+
+</body>
+</html>
