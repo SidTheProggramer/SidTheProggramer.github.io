@@ -14,7 +14,6 @@
   .field { background: rgba(255,255,255,0.05); border:1px solid rgba(255,255,255,0.2); padding:10px 12px; border-radius:10px; color:#e0e0e0; font-size:16px; }
   .field span.label { font-weight:500; color:#fff; }
   p { text-align:center; color:#aaa; margin-top:8px; font-size:14px; }
-  #tapNotice { color:#ccc; font-size:14px; margin-top:10px; text-align:center; }
   #switchBtn { margin-top:10px; padding:8px 12px; border-radius:8px; border:none; background: rgba(255,255,255,0.1); color:#fff; cursor:pointer; font-size:14px; }
 </style>
 </head>
@@ -25,7 +24,6 @@
 <div class="glass-container">
   <video id="video" autoplay playsinline></video>
   <p>Point your camera at the patient's QR code</p>
-  <p id="tapNotice"></p>
   <button id="switchBtn">Switch Camera</button>
 </div>
 
@@ -37,14 +35,10 @@
 <script>
 const video = document.getElementById('video');
 const infoContainer = document.getElementById('patient-info');
-const tapNotice = document.getElementById('tapNotice');
 const switchBtn = document.getElementById('switchBtn');
 let lastPatientCode = null;
 let devices = [];
 let currentDeviceIndex = 0;
-
-// Detect iOS
-const isIOS = /iPad|iPhone|iPod/.test(navigator.userAgent) && !window.MSStream;
 
 // Parse underscore-delimited patient info
 function parsePatientData(data) {
@@ -101,22 +95,12 @@ async function initCamera(){
   devices = (await navigator.mediaDevices.enumerateDevices()).filter(d=>d.kind==='videoinput');
   if(devices.length===0){ alert("No camera found"); return; }
 
-  if(isIOS){
-    tapNotice.textContent = "Tap anywhere to start camera";
-    document.body.addEventListener('click', async ()=>{
-      const rear = devices.find(d=>d.label.toLowerCase().includes('back')) || devices[0];
-      currentDeviceIndex = devices.indexOf(rear);
-      await startCameraByDevice(rear.deviceId);
-      tapNotice.textContent = "";
-    }, {once:true});
-  } else {
-    // Non-iOS: start immediately
-    const rear = devices.find(d=>d.label.toLowerCase().includes('back')) || devices[0];
-    currentDeviceIndex = devices.indexOf(rear);
-    await startCameraByDevice(rear.deviceId);
-  }
+  // Start rear camera if available
+  const rear = devices.find(d=>d.label.toLowerCase().includes('back')) || devices[0];
+  currentDeviceIndex = devices.indexOf(rear);
+  await startCameraByDevice(rear.deviceId);
 
-  // Switch camera button for all devices
+  // Switch camera button
   switchBtn.addEventListener('click', async ()=>{
     if(devices.length<2) return;
     currentDeviceIndex = (currentDeviceIndex+1)%devices.length;
