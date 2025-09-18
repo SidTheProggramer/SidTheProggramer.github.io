@@ -70,6 +70,13 @@
     margin-top: 8px;
     font-size: 14px;
   }
+
+  #tapNotice {
+    color: #ccc;
+    font-size: 14px;
+    margin-top: 10px;
+    text-align: center;
+  }
 </style>
 </head>
 <body>
@@ -77,8 +84,9 @@
 <h1>Medicare QR Scanner</h1>
 
 <div class="glass-container">
-  <video id="video" autoplay></video>
+  <video id="video" autoplay playsinline></video>
   <p>Point your camera at the patient's QR code</p>
+  <p id="tapNotice"></p>
 </div>
 
 <div class="glass-container info-container" id="patient-info">
@@ -89,41 +97,36 @@
 <script>
 const video = document.getElementById('video');
 const infoContainer = document.getElementById('patient-info');
-
+const tapNotice = document.getElementById('tapNotice');
 let lastPatientCode = null;
 
-// Function to start camera with fallback
+// Detect iOS
+const isIOS = /iPad|iPhone|iPod/.test(navigator.userAgent) && !window.MSStream;
+
+// Start camera with back camera main and front fallback
 async function startCamera() {
   try {
-    // Try rear camera first
-    const stream = await navigator.mediaDevices.getUserMedia({ video: { facingMode: "environment" } });
+    const devices = await navigator.mediaDevices.enumerateDevices();
+    const videoInput = devices.find(d => d.kind === 'videoinput' && d.label.toLowerCase().includes('back')) || devices[0];
+    const stream = await navigator.mediaDevices.getUserMedia({ video: { deviceId: videoInput.deviceId } });
     video.srcObject = stream;
   } catch (err) {
-    console.warn("Rear camera not available, using front camera:", err);
-    try {
-      // Fallback to front camera
-      const stream = await navigator.mediaDevices.getUserMedia({ video: { facingMode: "user" } });
-      video.srcObject = stream;
-    } catch (err2) {
-      alert("No camera available: " + err2);
-    }
+    alert("Camera access failed: " + err);
   }
 }
 
-// Parse underscore-delimited patient info into array of {label,value}
+// Parse underscore-delimited patient info into {label, value} array
 function parsePatientData(data) {
   return data.split('_').map(field => {
-    const [label, ...rest] = field.split(':');
-    return {
-      label: label.trim(),
-      value: rest.join(':').trim()
-    };
-  });
+    const parts = field.split(':');
+    if(parts.length < 2) return null; // skip invalid
+    return { label: parts[0].trim(), value: parts.slice(1).join(':').trim() };
+  }).filter(f => f !== null);
 }
 
-// Render patient info in separate divs
+// Display patient info in separate divs
 function displayPatientInfo(fields) {
-  // Clear previous info except the heading
+  // Clear previous fields except heading
   infoContainer.querySelectorAll('.field').forEach(el => el.remove());
 
   fields.forEach(f => {
@@ -132,9 +135,12 @@ function displayPatientInfo(fields) {
     div.innerHTML = `<span class="label">${f.label}:</span> ${f.value}`;
     infoContainer.appendChild(div);
   });
+
+  // Scroll to info container
+  infoContainer.scrollIntoView({ behavior: 'smooth' });
 }
 
-// Continuous scan loop
+// Continuous scanning
 function scanLoop() {
   if (video.readyState === video.HAVE_ENOUGH_DATA) {
     const canvas = document.createElement('canvas');
@@ -147,18 +153,27 @@ function scanLoop() {
     if (code && code.data !== lastPatientCode) {
       lastPatientCode = code.data;
       const fields = parsePatientData(code.data);
-      displayPatientInfo(fields);
+      if(fields.length > 0) displayPatientInfo(fields);
     }
   }
   requestAnimationFrame(scanLoop);
 }
 
+// Initialize
+if(isIOS){
+  tapNotice.textContent = "Tap anywhere to start camera";
+  document.body.addEventListener('click', () => {
+    startCamera().then(() => {
+      tapNotice.textContent = "";
+    });
+  }, { once: true });
+} else {
+  startCamera();
+}
+
 video.addEventListener('loadedmetadata', () => {
   scanLoop();
 });
-
-// Start camera on page load
-startCamera();
 </script>
 
 </body>
