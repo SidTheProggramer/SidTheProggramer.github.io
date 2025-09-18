@@ -1,4 +1,4 @@
-v<!DOCTYPE html>
+<!DOCTYPE html>
 <html lang="en">
 <head>
 <meta charset="UTF-8">
@@ -8,10 +8,11 @@ v<!DOCTYPE html>
   @import url('https://fonts.googleapis.com/css2?family=Roboto:wght@400;500;700&display=swap');
 
   body {
-    font-family: 'Roboto', sans-serif;
-    background: #f4f6f8;
     margin: 0;
     padding: 0;
+    font-family: 'Roboto', sans-serif;
+    background: #121212;
+    color: #fff;
     display: flex;
     flex-direction: column;
     align-items: center;
@@ -20,23 +21,25 @@ v<!DOCTYPE html>
 
   h1 {
     margin-top: 20px;
-    color: #333;
+    font-weight: 700;
   }
 
-  .scanner-container, .info-container {
-    background: #fff;
+  .glass-container {
+    background: rgba(255, 255, 255, 0.05);
+    border-radius: 15px;
+    backdrop-filter: blur(10px);
+    -webkit-backdrop-filter: blur(10px);
+    box-shadow: 0 8px 32px rgba(0,0,0,0.4);
     padding: 20px 30px;
     margin: 20px;
-    border-radius: 12px;
-    box-shadow: 0 6px 20px rgba(0,0,0,0.1);
     max-width: 500px;
-    width: 100%;
+    width: 90%;
   }
 
-  #qr-video {
+  video {
     width: 100%;
     border-radius: 12px;
-    border: 1px solid #ccc;
+    border: 1px solid rgba(255,255,255,0.2);
     min-height: 200px;
     background: #000;
   }
@@ -44,11 +47,35 @@ v<!DOCTYPE html>
   .info-container pre {
     font-family: monospace;
     font-size: 16px;
-    padding: 10px;
-    border-radius: 6px;
-    border: 1px solid #ccc;
-    background: #f0f0f0;
+    padding: 15px;
+    border-radius: 12px;
+    border: 1px solid rgba(255,255,255,0.2);
+    background: rgba(255,255,255,0.05);
     white-space: pre-wrap;
+    color: #e0e0e0;
+  }
+
+  button {
+    margin-top: 10px;
+    padding: 12px 20px;
+    background: rgba(255, 255, 255, 0.1);
+    border: 1px solid rgba(255,255,255,0.2);
+    border-radius: 12px;
+    color: #fff;
+    font-size: 16px;
+    cursor: pointer;
+    transition: 0.3s;
+  }
+
+  button:hover {
+    background: rgba(255, 255, 255, 0.2);
+  }
+
+  p {
+    text-align: center;
+    color: #aaa;
+    margin-top: 8px;
+    font-size: 14px;
   }
 </style>
 </head>
@@ -56,50 +83,52 @@ v<!DOCTYPE html>
 
 <h1>Medicare QR Scanner</h1>
 
-<div class="scanner-container">
-  <video id="qr-video"></video>
-  <p style="text-align:center; color:#555;">Point your camera at the patient's QR code</p>
+<div class="glass-container">
+  <video id="video" autoplay></video>
+  <p>Point your camera at the patient's QR code</p>
+  <button id="scanBtn">Scan QR Code</button>
 </div>
 
-<div class="info-container">
+<div class="glass-container info-container">
   <h2>Patient Info:</h2>
   <pre id="patient-info">Waiting for scan...</pre>
 </div>
 
-<script src="https://unpkg.com/html5-qrcode" type="text/javascript"></script>
+<script src="https://cdn.jsdelivr.net/npm/jsqr@1.4.0/dist/jsQR.js"></script>
 <script>
-  const infoEl = document.getElementById('patient-info');
+const video = document.getElementById('video');
+const infoEl = document.getElementById('patient-info');
+const scanBtn = document.getElementById('scanBtn');
 
-  function parsePatientData(data) {
-    const fields = data.split('_');
-    let formatted = '';
-    fields.forEach(f => {
-      formatted += f.trim() + '\n';
-    });
-    return formatted;
+// Access camera
+navigator.mediaDevices.getUserMedia({ video: { facingMode: "user" } })
+.then(stream => {
+  video.srcObject = stream;
+})
+.catch(err => {
+  alert("Error accessing camera: " + err);
+});
+
+// Parse underscore-delimited patient info
+function parsePatientData(data) {
+  return data.split('_').map(f => f.trim()).join('\n');
+}
+
+// Scan button handler
+scanBtn.addEventListener('click', () => {
+  const canvas = document.createElement('canvas');
+  canvas.width = video.videoWidth;
+  canvas.height = video.videoHeight;
+  const ctx = canvas.getContext('2d');
+  ctx.drawImage(video, 0, 0, canvas.width, canvas.height);
+  const imageData = ctx.getImageData(0, 0, canvas.width, canvas.height);
+  const code = jsQR(imageData.data, imageData.width, imageData.height);
+  if (code) {
+    infoEl.textContent = parsePatientData(code.data);
+  } else {
+    infoEl.textContent = "No QR code detected. Try again.";
   }
-
-  const html5QrCode = new Html5Qrcode("qr-video");
-
-  // Config
-  const config = { fps: 10, qrbox: 250 };
-
-  // Start scanning
-  html5QrCode.start(
-    { facingMode: "user" }, // 'user' works better on desktops
-    config,
-    (decodedText, decodedResult) => {
-      infoEl.textContent = parsePatientData(decodedText);
-      // Stop scanning after first successful scan
-      // html5QrCode.stop();
-    },
-    errorMessage => {
-      // ignore minor scan errors
-    }
-  ).catch(err => {
-    console.error("Unable to start QR scanner:", err);
-    infoEl.textContent = "Error: Unable to access camera. Make sure to run via a local server.";
-  });
+});
 </script>
 
 </body>
