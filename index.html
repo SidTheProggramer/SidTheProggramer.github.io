@@ -6,15 +6,82 @@
 <title>Medicare QR Scanner</title>
 <style>
   @import url('https://fonts.googleapis.com/css2?family=Roboto:wght@400;500;700&display=swap');
-  body { margin:0; padding:0; font-family:'Roboto',sans-serif; background:#121212; color:#fff; display:flex; flex-direction:column; align-items:center; min-height:100vh;}
-  h1 { margin-top:20px; font-weight:700H
-  .glass-container { background: rgba(255,255,255,0.05); border-radius:15px; backdrop-filter: blur(10px); -webkit-backdrop-filter: blur(10px); box-shadow:0 8px 32px rgba(0,0,0,0.4); padding:20px 30px; margin:20px; max-width:500px; width:90%; }
-  video { width:100%; border-radius:12px; border:1px solid rgba(255,255,255,0.2); min-height:200px; background:#000; }
-  .info-container { display:flex; flex-direction:column; gap:10px; }
-  .field { background: rgba(255,255,255,0.05); border:1px solid rgba(255,255,255,0.2); padding:10px 12px; border-radius:10px; color:#e0e0e0; font-size:16px; }
-  .field span.label { font-weight:500; color:#fff; }
-  p { text-align:center; color:#aaa; margin-top:8px; font-size:14px; }
-  #switchBtn { margin-top:10px; padding:8px 12px; border-radius:8px; border:none; background: rgba(255,255,255,0.1); color:#fff; cursor:pointer; font-size:14px; }
+
+  body {
+    margin: 0;
+    padding: 0;
+    font-family: 'Roboto', sans-serif;
+    background: #121212;
+    color: #fff;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    min-height: 100vh;
+  }
+
+  h1 {
+    margin-top: 20px;
+    font-weight: 700;
+  }
+
+  .glass-container {
+    background: rgba(255, 255, 255, 0.05);
+    border-radius: 15px;
+    backdrop-filter: blur(10px);
+    -webkit-backdrop-filter: blur(10px);
+    box-shadow: 0 8px 32px rgba(0, 0, 0, 0.4);
+    padding: 20px 30px;
+    margin: 20px;
+    max-width: 500px;
+    width: 90%;
+  }
+
+  video {
+    width: 100%;
+    border-radius: 12px;
+    border: 1px solid rgba(255, 255, 255, 0.2);
+    min-height: 200px;
+    background: #000;
+  }
+
+  .info-container {
+    display: flex;
+    flex-direction: column;
+    gap: 10px;
+  }
+
+  .field {
+    background: rgba(255, 255, 255, 0.05);
+    border: 1px solid rgba(255, 255, 255, 0.2);
+    padding: 10px 12px;
+    border-radius: 10px;
+    color: #e0e0e0;
+    font-size: 16px;
+    word-wrap: break-word;
+  }
+
+  .field span.label {
+    font-weight: 500;
+    color: #fff;
+  }
+
+  p {
+    text-align: center;
+    color: #aaa;
+    margin-top: 8px;
+    font-size: 14px;
+  }
+
+  #switchBtn {
+    margin-top: 10px;
+    padding: 8px 12px;
+    border-radius: 8px;
+    border: none;
+    background: rgba(255, 255, 255, 0.1);
+    color: #fff;
+    cursor: pointer;
+    font-size: 14px;
+  }
 </style>
 </head>
 <body>
@@ -40,15 +107,12 @@ let lastPatientCode = null;
 let devices = [];
 let currentDeviceIndex = 0;
 
-// Parse underscore-delimited patient info
-// Parse patient info separated by // instead of _
+// Parse patient info separated by // and colon
 function parsePatientData(data) {
-  // Split the entire QR code string by //
   return data.split('//').map(field => {
-    field = field.trim(); // remove extra spaces
-    // Split each field by colon
+    field = field.trim();
     const parts = field.split(':');
-    if (parts.length < 2) return null; // skip invalid fields
+    if (parts.length < 2) return null;
     return {
       label: parts[0].trim(),
       value: parts.slice(1).join(':').trim()
@@ -56,8 +120,7 @@ function parsePatientData(data) {
   }).filter(f => f !== null);
 }
 
-
-// Display patient info
+// Display patient info in separate divs
 function displayPatientInfo(fields){
   infoContainer.querySelectorAll('.field').forEach(el=>el.remove());
   fields.forEach(f=>{
@@ -69,7 +132,7 @@ function displayPatientInfo(fields){
   infoContainer.scrollIntoView({behavior:'smooth'});
 }
 
-// Continuous scanning
+// Continuous QR scanning
 function scanLoop(){
   if(video.readyState === video.HAVE_ENOUGH_DATA){
     const canvas = document.createElement('canvas');
@@ -78,7 +141,7 @@ function scanLoop(){
     const ctx = canvas.getContext('2d');
     ctx.drawImage(video,0,0,canvas.width,canvas.height);
     const imageData = ctx.getImageData(0,0,canvas.width,canvas.height);
-    const code = jsQR(imageData.data,imageData.width,imageData.height);
+    const code = jsQR(imageData.data, imageData.width, imageData.height);
     if(code && code.data!==lastPatientCode){
       lastPatientCode = code.data;
       const fields = parsePatientData(code.data);
@@ -98,7 +161,7 @@ async function startCameraByDevice(deviceId){
   }
 }
 
-// Initialize camera
+// Initialize camera and devices
 async function initCamera(){
   devices = (await navigator.mediaDevices.enumerateDevices()).filter(d=>d.kind==='videoinput');
   if(devices.length===0){ alert("No camera found"); return; }
