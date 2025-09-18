@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>Medicare App QR Scanner</title>
+<title>Medicare QR Scanner</title>
 <style>
   @import url('https://fonts.googleapis.com/css2?family=Roboto:wght@400;500;700&display=swap');
 
@@ -92,16 +92,25 @@ const infoContainer = document.getElementById('patient-info');
 
 let lastPatientCode = null;
 
-// Access camera
-navigator.mediaDevices.getUserMedia({ video: { facingMode: "user" } })
-.then(stream => {
-  video.srcObject = stream;
-})
-.catch(err => {
-  alert("Error accessing camera: " + err);
-});
+// Function to start camera with fallback
+async function startCamera() {
+  try {
+    // Try rear camera first
+    const stream = await navigator.mediaDevices.getUserMedia({ video: { facingMode: "environment" } });
+    video.srcObject = stream;
+  } catch (err) {
+    console.warn("Rear camera not available, using front camera:", err);
+    try {
+      // Fallback to front camera
+      const stream = await navigator.mediaDevices.getUserMedia({ video: { facingMode: "user" } });
+      video.srcObject = stream;
+    } catch (err2) {
+      alert("No camera available: " + err2);
+    }
+  }
+}
 
-// Parse underscore-delimited patient info into an array of {label, value}
+// Parse underscore-delimited patient info into array of {label,value}
 function parsePatientData(data) {
   return data.split('_').map(field => {
     const [label, ...rest] = field.split(':');
@@ -116,7 +125,7 @@ function parsePatientData(data) {
 function displayPatientInfo(fields) {
   // Clear previous info except the heading
   infoContainer.querySelectorAll('.field').forEach(el => el.remove());
-  
+
   fields.forEach(f => {
     const div = document.createElement('div');
     div.className = 'field';
@@ -147,6 +156,9 @@ function scanLoop() {
 video.addEventListener('loadedmetadata', () => {
   scanLoop();
 });
+
+// Start camera on page load
+startCamera();
 </script>
 
 </body>
