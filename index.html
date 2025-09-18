@@ -6,16 +6,70 @@
 <title>Medicare QR Scanner</title>
 <style>
   @import url('https://fonts.googleapis.com/css2?family=Roboto:wght@400;500;700&display=swap');
-  body { margin:0; padding:0; font-family: 'Roboto', sans-serif; background: #121212; color:#fff; display:flex; flex-direction:column; align-items:center; min-height:100vh;}
-  h1 { margin-top:20px; font-weight:700;}
-  .glass-container { background: rgba(255,255,255,0.05); border-radius:15px; backdrop-filter: blur(10px); -webkit-backdrop-filter: blur(10px); box-shadow:0 8px 32px rgba(0,0,0,0.4); padding:20px 30px; margin:20px; max-width:500px; width:90%; }
-  video { width:100%; border-radius:12px; border:1px solid rgba(255,255,255,0.2); min-height:200px; background:#000; }
-  .info-container { display:flex; flex-direction:column; gap:10px; }
-  .field { background: rgba(255,255,255,0.05); border:1px solid rgba(255,255,255,0.2); padding:10px 12px; border-radius:10px; color:#e0e0e0; font-size:16px; }
-  .field span.label { font-weight:500; color:#fff; }
-  p { text-align:center; color:#aaa; margin-top:8px; font-size:14px; }
-  #tapNotice { color:#ccc; font-size:14px; margin-top:10px; text-align:center; }
-  #switchBtn { margin-top:10px; padding:8px 12px; border-radius:8px; border:none; background: rgba(255,255,255,0.1); color:#fff; cursor:pointer; font-size:14px; }
+
+  body {
+    margin: 0;
+    padding: 0;
+    font-family: 'Roboto', sans-serif;
+    background: #121212;
+    color: #fff;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    min-height: 100vh;
+  }
+
+  h1 {
+    margin-top: 20px;
+    font-weight: 700;
+  }
+
+  .glass-container {
+    background: rgba(255, 255, 255, 0.05);
+    border-radius: 15px;
+    backdrop-filter: blur(10px);
+    -webkit-backdrop-filter: blur(10px);
+    box-shadow: 0 8px 32px rgba(0,0,0,0.4);
+    padding: 20px 30px;
+    margin: 20px;
+    max-width: 500px;
+    width: 90%;
+  }
+
+  video {
+    width: 100%;
+    border-radius: 12px;
+    border: 1px solid rgba(255,255,255,0.2);
+    min-height: 200px;
+    background: #000;
+  }
+
+  .info-container {
+    display: flex;
+    flex-direction: column;
+    gap: 10px;
+  }
+
+  .field {
+    background: rgba(255,255,255,0.05);
+    border: 1px solid rgba(255,255,255,0.2);
+    padding: 10px 12px;
+    border-radius: 10px;
+    color: #e0e0e0;
+    font-size: 16px;
+  }
+
+  .field span.label {
+    font-weight: 500;
+    color: #ffffff;
+  }
+
+  p {
+    text-align: center;
+    color: #aaa;
+    margin-top: 8px;
+    font-size: 14px;
+  }
 </style>
 </head>
 <body>
@@ -23,10 +77,8 @@
 <h1>Medicare QR Scanner</h1>
 
 <div class="glass-container">
-  <video id="video" autoplay playsinline></video>
+  <video id="video" autoplay></video>
   <p>Point your camera at the patient's QR code</p>
-  <p id="tapNotice"></p>
-  <button id="switchBtn" style="display:none;">Switch Camera</button>
 </div>
 
 <div class="glass-container info-container" id="patient-info">
@@ -37,98 +89,74 @@
 <script>
 const video = document.getElementById('video');
 const infoContainer = document.getElementById('patient-info');
-const tapNotice = document.getElementById('tapNotice');
-const switchBtn = document.getElementById('switchBtn');
 let lastPatientCode = null;
-let devices = [];
-let currentDeviceIndex = 0;
 
-// Detect iOS
-const isIOS = /iPad|iPhone|iPod/.test(navigator.userAgent) && !window.MSStream;
-
-// Parse patient info
-function parsePatientData(data) {
-  return data.split('_').map(f=>{
-    const parts = f.split(':');
-    if(parts.length < 2) return null;
-    return {label: parts[0].trim(), value: parts.slice(1).join(':').trim()};
-  }).filter(f=>f!==null);
+// Start camera with rear camera first, front camera as fallback
+async function startCamera() {
+  try {
+    const stream = await navigator.mediaDevices.getUserMedia({ video: { facingMode: "environment" } });
+    video.srcObject = stream;
+  } catch (err) {
+    console.warn("Rear camera not available, using front camera:", err);
+    try {
+      const stream = await navigator.mediaDevices.getUserMedia({ video: { facingMode: "user" } });
+      video.srcObject = stream;
+    } catch (err2) {
+      alert("No camera available: " + err2);
+    }
+  }
 }
 
-// Display info
-function displayPatientInfo(fields){
-  infoContainer.querySelectorAll('.field').forEach(el=>el.remove());
-  fields.forEach(f=>{
+// Parse underscore-delimited patient info
+function parsePatientData(data) {
+  return data.split('_').map(field => {
+    const [label, ...rest] = field.split(':');
+    return {
+      label: label.trim(),
+      value: rest.join(':').trim()
+    };
+  });
+}
+
+// Render patient info in separate divs
+function displayPatientInfo(fields) {
+  // Clear previous fields only when a new QR is detected
+  infoContainer.querySelectorAll('.field').forEach(el => el.remove());
+
+  fields.forEach(f => {
     const div = document.createElement('div');
-    div.className='field';
-    div.innerHTML=`<span class="label">${f.label}:</span> ${f.value}`;
+    div.className = 'field';
+    div.innerHTML = `<span class="label">${f.label}:</span> ${f.value}`;
     infoContainer.appendChild(div);
   });
-  infoContainer.scrollIntoView({behavior:'smooth'});
 }
 
-// Continuous scanning
-function scanLoop(){
-  if(video.readyState === video.HAVE_ENOUGH_DATA){
+// Continuous scanning loop
+function scanLoop() {
+  if (video.readyState === video.HAVE_ENOUGH_DATA) {
     const canvas = document.createElement('canvas');
     canvas.width = video.videoWidth;
     canvas.height = video.videoHeight;
     const ctx = canvas.getContext('2d');
-    ctx.drawImage(video,0,0,canvas.width,canvas.height);
-    const imageData = ctx.getImageData(0,0,canvas.width,canvas.height);
-    const code = jsQR(imageData.data,imageData.width,imageData.height);
-    if(code && code.data!==lastPatientCode){
+    ctx.drawImage(video, 0, 0, canvas.width, canvas.height);
+    const imageData = ctx.getImageData(0, 0, canvas.width, canvas.height);
+    const code = jsQR(imageData.data, imageData.width, imageData.height);
+    if (code && code.data !== lastPatientCode) {
       lastPatientCode = code.data;
       const fields = parsePatientData(code.data);
-      if(fields.length>0) displayPatientInfo(fields);
+      displayPatientInfo(fields);
     }
   }
   requestAnimationFrame(scanLoop);
 }
 
-// Start camera by deviceId
-async function startCameraByDevice(deviceId){
-  try{
-    const stream = await navigator.mediaDevices.getUserMedia({video:{deviceId}});
-    video.srcObject = stream;
-  }catch(err){
-    alert("Camera access failed: "+err);
-  }
-}
+// Start scanning once video metadata is loaded
+video.addEventListener('loadedmetadata', () => {
+  scanLoop();
+});
 
-// Initialize
-async function initCamera(){
-  devices = (await navigator.mediaDevices.enumerateDevices()).filter(d=>d.kind==='videoinput');
-  if(devices.length===0){ alert("No camera found"); return; }
-
-  // iOS: show tap notice and switch button
-  if(isIOS){
-    tapNotice.textContent = "Tap anywhere to start camera";
-    switchBtn.style.display = "inline-block";
-
-    document.body.addEventListener('click', async ()=>{
-      // Prefer rear camera
-      const rear = devices.find(d=>d.label.toLowerCase().includes('back')) || devices[0];
-      currentDeviceIndex = devices.indexOf(rear);
-      await startCameraByDevice(rear.deviceId);
-      tapNotice.textContent = "";
-    }, {once:true});
-
-    switchBtn.addEventListener('click', async ()=>{
-      currentDeviceIndex = (currentDeviceIndex+1)%devices.length;
-      await startCameraByDevice(devices[currentDeviceIndex].deviceId);
-    });
-
-  } else {
-    // Non-iOS: try environment facing first
-    const rear = devices.find(d=>d.label.toLowerCase().includes('back')) || devices[0];
-    currentDeviceIndex = devices.indexOf(rear);
-    await startCameraByDevice(rear.deviceId);
-  }
-}
-
-video.addEventListener('loadedmetadata',()=>{ scanLoop(); });
-initCamera();
+// Start camera on page load
+startCamera();
 </script>
 
 </body>
