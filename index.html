@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>Medicare QR Scanner</title>
+<title>Medicare App QR Scanner</title>
 <style>
   @import url('https://fonts.googleapis.com/css2?family=Roboto:wght@400;500;700&display=swap');
 
@@ -44,15 +44,24 @@
     background: #000;
   }
 
-  .info-container pre {
-    font-family: monospace;
-    font-size: 16px;
-    padding: 15px;
-    border-radius: 12px;
-    border: 1px solid rgba(255,255,255,0.2);
+  .info-container {
+    display: flex;
+    flex-direction: column;
+    gap: 10px;
+  }
+
+  .field {
     background: rgba(255,255,255,0.05);
-    white-space: pre-wrap;
+    border: 1px solid rgba(255,255,255,0.2);
+    padding: 10px 12px;
+    border-radius: 10px;
     color: #e0e0e0;
+    font-size: 16px;
+  }
+
+  .field span.label {
+    font-weight: 500;
+    color: #ffffff;
   }
 
   p {
@@ -72,15 +81,16 @@
   <p>Point your camera at the patient's QR code</p>
 </div>
 
-<div class="glass-container info-container">
+<div class="glass-container info-container" id="patient-info">
   <h2>Patient Info:</h2>
-  <pre id="patient-info">Waiting for scan...</pre>
 </div>
 
 <script src="https://cdn.jsdelivr.net/npm/jsqr@1.4.0/dist/jsQR.js"></script>
 <script>
 const video = document.getElementById('video');
-const infoEl = document.getElementById('patient-info');
+const infoContainer = document.getElementById('patient-info');
+
+let lastPatientCode = null;
 
 // Access camera
 navigator.mediaDevices.getUserMedia({ video: { facingMode: "user" } })
@@ -91,9 +101,28 @@ navigator.mediaDevices.getUserMedia({ video: { facingMode: "user" } })
   alert("Error accessing camera: " + err);
 });
 
-// Parse underscore-delimited patient info
+// Parse underscore-delimited patient info into an array of {label, value}
 function parsePatientData(data) {
-  return data.split('_').map(f => f.trim()).join('\n');
+  return data.split('_').map(field => {
+    const [label, ...rest] = field.split(':');
+    return {
+      label: label.trim(),
+      value: rest.join(':').trim()
+    };
+  });
+}
+
+// Render patient info in separate divs
+function displayPatientInfo(fields) {
+  // Clear previous info except the heading
+  infoContainer.querySelectorAll('.field').forEach(el => el.remove());
+  
+  fields.forEach(f => {
+    const div = document.createElement('div');
+    div.className = 'field';
+    div.innerHTML = `<span class="label">${f.label}:</span> ${f.value}`;
+    infoContainer.appendChild(div);
+  });
 }
 
 // Continuous scan loop
@@ -106,8 +135,10 @@ function scanLoop() {
     ctx.drawImage(video, 0, 0, canvas.width, canvas.height);
     const imageData = ctx.getImageData(0, 0, canvas.width, canvas.height);
     const code = jsQR(imageData.data, imageData.width, imageData.height);
-    if (code) {
-      infoEl.textContent = parsePatientData(code.data);
+    if (code && code.data !== lastPatientCode) {
+      lastPatientCode = code.data;
+      const fields = parsePatientData(code.data);
+      displayPatientInfo(fields);
     }
   }
   requestAnimationFrame(scanLoop);
