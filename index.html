@@ -55,22 +55,6 @@
     color: #e0e0e0;
   }
 
-  button {
-    margin-top: 10px;
-    padding: 12px 20px;
-    background: rgba(255, 255, 255, 0.1);
-    border: 1px solid rgba(255,255,255,0.2);
-    border-radius: 12px;
-    color: #fff;
-    font-size: 16px;
-    cursor: pointer;
-    transition: 0.3s;
-  }
-
-  button:hover {
-    background: rgba(255, 255, 255, 0.2);
-  }
-
   p {
     text-align: center;
     color: #aaa;
@@ -86,7 +70,6 @@
 <div class="glass-container">
   <video id="video" autoplay></video>
   <p>Point your camera at the patient's QR code</p>
-  <button id="scanBtn">Scan QR Code</button>
 </div>
 
 <div class="glass-container info-container">
@@ -98,7 +81,6 @@
 <script>
 const video = document.getElementById('video');
 const infoEl = document.getElementById('patient-info');
-const scanBtn = document.getElementById('scanBtn');
 
 // Access camera
 navigator.mediaDevices.getUserMedia({ video: { facingMode: "user" } })
@@ -114,20 +96,25 @@ function parsePatientData(data) {
   return data.split('_').map(f => f.trim()).join('\n');
 }
 
-// Scan button handler
-scanBtn.addEventListener('click', () => {
-  const canvas = document.createElement('canvas');
-  canvas.width = video.videoWidth;
-  canvas.height = video.videoHeight;
-  const ctx = canvas.getContext('2d');
-  ctx.drawImage(video, 0, 0, canvas.width, canvas.height);
-  const imageData = ctx.getImageData(0, 0, canvas.width, canvas.height);
-  const code = jsQR(imageData.data, imageData.width, imageData.height);
-  if (code) {
-    infoEl.textContent = parsePatientData(code.data);
-  } else {
-    infoEl.textContent = "No QR code detected. Try again.";
+// Continuous scan loop
+function scanLoop() {
+  if (video.readyState === video.HAVE_ENOUGH_DATA) {
+    const canvas = document.createElement('canvas');
+    canvas.width = video.videoWidth;
+    canvas.height = video.videoHeight;
+    const ctx = canvas.getContext('2d');
+    ctx.drawImage(video, 0, 0, canvas.width, canvas.height);
+    const imageData = ctx.getImageData(0, 0, canvas.width, canvas.height);
+    const code = jsQR(imageData.data, imageData.width, imageData.height);
+    if (code) {
+      infoEl.textContent = parsePatientData(code.data);
+    }
   }
+  requestAnimationFrame(scanLoop);
+}
+
+video.addEventListener('loadedmetadata', () => {
+  scanLoop();
 });
 </script>
 
