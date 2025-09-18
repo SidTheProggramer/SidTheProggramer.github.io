@@ -1,4 +1,4 @@
-<!DOCTYPE html>
+v<!DOCTYPE html>
 <html lang="en">
 <head>
 <meta charset="UTF-8">
@@ -37,6 +37,8 @@
     width: 100%;
     border-radius: 12px;
     border: 1px solid #ccc;
+    min-height: 200px;
+    background: #000;
   }
 
   .info-container pre {
@@ -69,7 +71,6 @@
   const infoEl = document.getElementById('patient-info');
 
   function parsePatientData(data) {
-    // Split by underscore
     const fields = data.split('_');
     let formatted = '';
     fields.forEach(f => {
@@ -79,22 +80,25 @@
   }
 
   const html5QrCode = new Html5Qrcode("qr-video");
+
+  // Config
   const config = { fps: 10, qrbox: 250 };
 
+  // Start scanning
   html5QrCode.start(
-    { facingMode: "environment" }, 
+    { facingMode: "user" }, // 'user' works better on desktops
     config,
     (decodedText, decodedResult) => {
-      // Parse underscores and display
       infoEl.textContent = parsePatientData(decodedText);
-      // Optionally stop scanning after first scan
+      // Stop scanning after first successful scan
       // html5QrCode.stop();
     },
     errorMessage => {
-      // ignore errors
+      // ignore minor scan errors
     }
   ).catch(err => {
     console.error("Unable to start QR scanner:", err);
+    infoEl.textContent = "Error: Unable to access camera. Make sure to run via a local server.";
   });
 </script>
 
