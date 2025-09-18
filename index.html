@@ -4,59 +4,98 @@
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>Medicare QR Scanner</title>
-<script src="https://unpkg.com/html5-qrcode/minified/html5-qrcode.min.js"></script>
 <style>
-  body { font-family: Arial, sans-serif; padding: 10px; }
-  h1 { text-align: center; }
-  #reader { width: 100%; max-width: 400px; margin: auto; }
-  #info { max-width: 400px; margin: 20px auto; padding: 10px; border: 1px solid #ccc; border-radius: 5px; background: #f9f9f9; }
-  .field { margin-bottom: 8px; }
-  .label { font-weight: bold; }
+  @import url('https://fonts.googleapis.com/css2?family=Roboto:wght@400;500;700&display=swap');
+
+  body {
+    font-family: 'Roboto', sans-serif;
+    background: #f4f6f8;
+    margin: 0;
+    padding: 0;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    min-height: 100vh;
+  }
+
+  h1 {
+    margin-top: 20px;
+    color: #333;
+  }
+
+  .scanner-container, .info-container {
+    background: #fff;
+    padding: 20px 30px;
+    margin: 20px;
+    border-radius: 12px;
+    box-shadow: 0 6px 20px rgba(0,0,0,0.1);
+    max-width: 500px;
+    width: 100%;
+  }
+
+  #qr-video {
+    width: 100%;
+    border-radius: 12px;
+    border: 1px solid #ccc;
+  }
+
+  .info-container pre {
+    font-family: monospace;
+    font-size: 16px;
+    padding: 10px;
+    border-radius: 6px;
+    border: 1px solid #ccc;
+    background: #f0f0f0;
+    white-space: pre-wrap;
+  }
 </style>
 </head>
 <body>
 
 <h1>Medicare QR Scanner</h1>
-<div id="reader"></div>
 
-<h2>Patient Info:</h2>
-<div id="info"></div>
+<div class="scanner-container">
+  <video id="qr-video"></video>
+  <p style="text-align:center; color:#555;">Point your camera at the patient's QR code</p>
+</div>
 
+<div class="info-container">
+  <h2>Patient Info:</h2>
+  <pre id="patient-info">Waiting for scan...</pre>
+</div>
+
+<script src="https://unpkg.com/html5-qrcode" type="text/javascript"></script>
 <script>
-function onScanSuccess(decodedText, decodedResult) {
-  const infoDiv = document.getElementById('info');
-  infoDiv.innerHTML = '';
+  const infoEl = document.getElementById('patient-info');
 
- 
-  const fields = decodedText.split('_');
+  function parsePatientData(data) {
+    // Split by underscore
+    const fields = data.split('_');
+    let formatted = '';
+    fields.forEach(f => {
+      formatted += f.trim() + '\n';
+    });
+    return formatted;
+  }
 
-  // Loop through each field and display
-  fields.forEach(field => {
-    if(field.trim() !== '') {
-      const div = document.createElement('div');
-      div.className = 'field';
+  const html5QrCode = new Html5Qrcode("qr-video");
+  const config = { fps: 10, qrbox: 250 };
 
-    
-      const parts = field.split(/:(.+)/); // split at first colon only
-      if(parts.length > 1) {
-        div.innerHTML = `<span class="label">${parts[0]}:</span> ${parts[1]}`;
-      } else {
-        div.textContent = field;
-      }
-
-      infoDiv.appendChild(div);
+  html5QrCode.start(
+    { facingMode: "environment" }, 
+    config,
+    (decodedText, decodedResult) => {
+      // Parse underscores and display
+      infoEl.textContent = parsePatientData(decodedText);
+      // Optionally stop scanning after first scan
+      // html5QrCode.stop();
+    },
+    errorMessage => {
+      // ignore errors
     }
+  ).catch(err => {
+    console.error("Unable to start QR scanner:", err);
   });
-}
-
-function onScanFailure(error) {
-  console.warn(`Scan failed: ${error}`);
-}
-
-// Initialize QR scanner
-let html5QrcodeScanner = new Html5QrcodeScanner(
-  "reader", { fps: 10, qrbox: 250 });
-html5QrcodeScanner.render(onScanSuccess, onScanFailure);
 </script>
 
 </body>
