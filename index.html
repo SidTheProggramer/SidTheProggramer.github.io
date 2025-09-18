@@ -43,10 +43,16 @@ let currentDeviceIndex = 0;
 // Parse underscore-delimited patient info
 // Parse patient info separated by // instead of _
 function parsePatientData(data) {
-  return data.split('//').map(f => {
-    const parts = f.split(':');
-    if (parts.length < 2) return null; // skip invalid
-    return { label: parts[0].trim(), value: parts.slice(1).join(':').trim() };
+  // Split the entire QR code string by //
+  return data.split('//').map(field => {
+    field = field.trim(); // remove extra spaces
+    // Split each field by colon
+    const parts = field.split(':');
+    if (parts.length < 2) return null; // skip invalid fields
+    return {
+      label: parts[0].trim(),
+      value: parts.slice(1).join(':').trim()
+    };
   }).filter(f => f !== null);
 }
 
