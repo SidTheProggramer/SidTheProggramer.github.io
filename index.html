@@ -56,23 +56,6 @@
     border: 1px solid rgba(255, 255, 255, 0.2);
     background: #000;
   }
-  .scanning-line {
-    position: absolute;
-    left: 0;
-    right: 0;
-    height: 2px;
-    background: linear-gradient(90deg, transparent, #00ff00, transparent);
-    box-shadow: 0 0 10px #00ff00;
-    border-radius: 1px;
-    z-index: 10;
-    animation: scan 2s linear infinite;
-    pointer-events: none;
-  }
-  @keyframes scan {
-    0%   { top: 0; opacity: 1; }
-    50%  { opacity: 0.8; }
-    100% { top: calc(100% - 2px); opacity: 1; }
-  }
   .info-container {
     display: flex;
     flex-direction: column;
@@ -133,7 +116,6 @@
 <div class="glass-container">
   <div class="video-container">
     <video id="video" autoplay playsinline></video>
-    <div class="scanning-line" id="scanningLine"></div>
   </div>
   <p>Point your camera at the patient's QR code</p>
   <button id="switchBtn">Switch Camera</button>
@@ -148,7 +130,6 @@ const video = document.getElementById('video');
 const infoContainer = document.getElementById('patient-info');
 const switchBtn = document.getElementById('switchBtn');
 const startCameraBtn = document.getElementById('startCameraBtn');
-const scanningLine = document.getElementById('scanningLine');
 
 let lastPatientCode = null;
 let devices = [];
@@ -220,14 +201,12 @@ function scanLoop(){
 // Start scanning
 function startScanning() {
   isScanning = true;
-  scanningLine.style.display = 'block';
   scanLoop();
 }
 
 // Stop scanning
 function stopScanning() {
   isScanning = false;
-  scanningLine.style.display = 'none';
 }
 
 // Start camera by deviceId with enhanced constraints
