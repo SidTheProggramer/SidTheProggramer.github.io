@@ -1,362 +1,233 @@
 <!DOCTYPE html>
 <html lang="en">
 <head>
-<meta charset="UTF-8">
-<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0"/>
 <title>Medicare QR Scanner</title>
 <style>
-  @import url('https://fonts.googleapis.com/css2?family=Roboto:wght@400;500;700&display=swap');
-  body {
-    margin: 0;
-    padding: 0;
-    font-family: 'Roboto', sans-serif;
-    background: #121212;
-    color: #fff;
-    display: flex;
-    flex-direction: column;
-    align-items: center;
-    min-height: 100vh;
-  }
-  h1 {
-    margin-top: 20px;
-    font-weight: 700;
-  }
-  .glass-container {
-    background: rgba(255, 255, 255, 0.05);
-    border-radius: 15px;
-    backdrop-filter: blur(10px);
-    -webkit-backdrop-filter: blur(10px);
-    box-shadow: 0 8px 32px rgba(0, 0, 0, 0.4);
-    padding: 20px 30px;
-    margin: 20px;
-    max-width: 500px;
-    width: 90%;
-  }
-  .video-container {
-    position: relative;
-    width: 100%;
-    max-width: 300px;
-    margin: 0 auto;
-    overflow: hidden;
-    border-radius: 12px;
-  }
-  .video-container::before {
-    content: '';
-    display: block;
-    padding-bottom: 100%; /* 1:1 Aspect Ratio */
-  }
-  video {
-    position: absolute;
-    top: 0;
-    left: 0;
-    width: 100%;
-    height: 100%;
-    object-fit: cover;
-    border-radius: 12px;
-    border: 1px solid rgba(255, 255, 255, 0.2);
-    background: #000;
-  }
-  .info-container {
-    display: flex;
-    flex-direction: column;
-    gap: 10px;
-  }
-  .field {
-    background: rgba(255, 255, 255, 0.05);
-    border: 1px solid rgba(255, 255, 255, 0.2);
-    padding: 10px 12px;
-    border-radius: 10px;
-    color: #e0e0e0;
-    font-size: 16px;
-    word-wrap: break-word;
-  }
-  .field span.label {
-    font-weight: 500;
-    color: #fff;
-  }
-  p {
-    text-align: center;
-    color: #aaa;
-    margin-top: 8px;
-    font-size: 14px;
-  }
-  #switchBtn, #startCameraBtn {
-    margin-top: 10px;
-    padding: 8px 12px;
-    border-radius: 8px;
-    border: none;
-    background: rgba(255, 255, 255, 0.1);
-    color: #fff;
-    cursor: pointer;
-    font-size: 14px;
-    margin-right: 5px;
-  }
-  #startCameraBtn {
-    background: rgba(0, 150, 255, 0.3);
-    border: 1px solid rgba(0, 150, 255, 0.5);
-  }
-  /* Mobile optimizations */
-  @media (max-width: 480px) {
-    .glass-container {
-      margin: 10px;
-      padding: 15px 20px;
-    }
-    .video-container {
-      max-width: 280px;
-    }
-    h1 {
-      font-size: 24px;
-      margin-top: 15px;
-    }
-  }
+@import url('https://fonts.googleapis.com/css2?family=Roboto:wght@400;500;700&display=swap');
+body { margin:0; padding:0; font-family:'Roboto',sans-serif; background:#121212; color:#fff; display:flex; flex-direction:column; align-items:center; min-height:100vh;}
+h1 { margin-top:20px; font-weight:700;}
+.glass-container { background: rgba(255,255,255,0.05); border-radius:15px; backdrop-filter: blur(10px); -webkit-backdrop-filter: blur(10px); box-shadow:0 8px 32px rgba(0,0,0,0.4); padding:20px 30px; margin:20px; max-width:500px; width:90%; }
+video { width:100%; border-radius:12px; border:1px solid rgba(255,255,255,0.2); min-height:200px; background:#000; }
+.info-container { display:flex; flex-direction:column; gap:10px; }
+.field { background: rgba(255,255,255,0.04); border:1px solid rgba(255,255,255,0.12); padding:10px 12px; border-radius:10px; color:#e0e0e0; font-size:16px; display:flex; gap:8px; align-items:flex-start; word-break:break-word; }
+.field span.label { font-weight:600; color:#fff; min-width:120px; display:inline-block; }
+.field .value { color:#e6e6e6; flex:1; }
+.sub-field { padding:8px 10px; border-radius:8px; background: rgba(255,255,255,0.03); border:1px solid rgba(255,255,255,0.06); }
+p { text-align:center; color:#aaa; margin-top:8px; font-size:14px; }
+#tapNotice { color:#ccc; font-size:14px; margin-top:10px; text-align:center; }
+#switchBtn { margin-top:10px; padding:8px 12px; border-radius:8px; border:none; background: rgba(255,255,255,0.1); color:#fff; cursor:pointer; font-size:14px; }
+@media (max-width:420px){
+.field span.label { min-width:90px; font-size:14px; }
+.field { font-size:15px; }
+}
 </style>
 </head>
 <body>
+
 <h1>Medicare QR Scanner</h1>
+
 <div class="glass-container">
-  <div class="video-container">
-    <video id="video" autoplay playsinline></video>
-  </div>
-  <p>Point your camera at the patient's QR code</p>
-  <button id="switchBtn">Switch Camera</button>
-  <button id="startCameraBtn" style="display: none;">Start Camera</button>
+<video id="video" autoplay playsinline></video>
+<p>Point your camera at the patient's QR code</p>
+<p id="tapNotice"></p>
+<button id="switchBtn">Switch Camera</button>
 </div>
+
 <div class="glass-container info-container" id="patient-info">
-  <h2>Patient Info:</h2>
+<h2>Patient Info:</h2>
 </div>
+
 <script src="https://cdn.jsdelivr.net/npm/jsqr@1.4.0/dist/jsQR.js"></script>
 <script>
 const video = document.getElementById('video');
 const infoContainer = document.getElementById('patient-info');
+const tapNotice = document.getElementById('tapNotice');
 const switchBtn = document.getElementById('switchBtn');
-const startCameraBtn = document.getElementById('startCameraBtn');
-
 let lastPatientCode = null;
 let devices = [];
 let currentDeviceIndex = 0;
-let isScanning = false;
-let currentStream = null;
 
-// Check if device is iOS
-function isIOS() {
-  return /iPad|iPhone|iPod/.test(navigator.userAgent) || 
-         (navigator.platform === 'MacIntel' && navigator.maxTouchPoints > 1);
-}
+// Detect iOS
+const isIOS = /iPad|iPhone|iPod/.test(navigator.userAgent) && !window.MSStream;
 
-// Stop current camera stream
-function stopCurrentStream() {
-  if (currentStream) {
-    currentStream.getTracks().forEach(track => track.stop());
-    currentStream = null;
-  }
-}
-
-// Parse patient info separated by // and colon
+// Parse underscore-delimited patient info.
+// Each field is like "Label:Value" and fields separated by underscores.
+// If a value contains slashes, split the value into multiple pieces.
 function parsePatientData(data) {
-  return data.split('//').map(field => {
-    field = field.trim();
-    const parts = field.split(':');
-    if (parts.length < 2) return null;
-    return {
-      label: parts[0].trim(),
-      value: parts.slice(1).join(':').trim()
-    };
-  }).filter(f => f !== null);
+// Safety: trim and avoid empty strings
+return data.split('_').map(f => {
+const raw = f.trim();
+if (!raw) return null;
+const parts = raw.split(':');
+if (parts.length < 2) return null;
+const label = parts[0].trim();
+const valueRaw = parts.slice(1).join(':').trim();
+// Split by slash '/', but ignore empty pieces. Trim each piece.
+const pieces = valueRaw.split('/').map(p => p.trim()).filter(p => p.length>0);
+// if there were no slashes, pieces is still single item
+return { label, pieces };
+}).filter(f => f !== null);
 }
 
-// Display patient info in separate divs
+// Display patient info: each slash-separated piece gets its own box
 function displayPatientInfo(fields){
-  infoContainer.querySelectorAll('.field').forEach(el=>el.remove());
-  fields.forEach(f=>{
-    const div = document.createElement('div');
-    div.className='field';
-    div.innerHTML=`<span class="label">${f.label}:</span> ${f.value}`;
-    infoContainer.appendChild(div);
-  });
-  infoContainer.scrollIntoView({behavior:'smooth'});
+// remove old fields except the heading (h2)
+infoContainer.querySelectorAll('.field').forEach(el => el.remove());
+
+fields.forEach(f => {
+if (!f.pieces || f.pieces.length === 0) return;
+
+// Create a box for the first piece with the label
+const firstDiv = document.createElement('div');
+firstDiv.className = 'field';
+const labelSpan = document.createElement('span');
+labelSpan.className = 'label';
+labelSpan.textContent = f.label + ':';
+const valueDiv = document.createElement('div');
+valueDiv.className = 'value';
+valueDiv.textContent = f.pieces[0];
+firstDiv.appendChild(labelSpan);
+firstDiv.appendChild(valueDiv);
+infoContainer.appendChild(firstDiv);
+
+// If there are more pieces (slash-separated), create separate smaller boxes for each
+if (f.pieces.length > 1) {
+// Wrap the extra pieces in a container so they appear grouped visually
+const extraContainer = document.createElement('div');
+extraContainer.style.display = 'flex';
+extraContainer.style.flexDirection = 'column';
+extraContainer.style.gap = '8px';
+extraContainer.style.marginLeft = '0'; // keep aligned under the field
+// For each remaining piece, create a sub-field (no repeated label)
+for (let i = 1; i < f.pieces.length; i++) {
+const sub = document.createElement('div');
+sub.className = 'field sub-field';
+// create an empty placeholder span for label to keep alignment
+const emptyLabel = document.createElement('span');
+emptyLabel.className = 'label';
+emptyLabel.textContent = ''; // no text
+emptyLabel.style.opacity = '0.6';
+const subVal = document.createElement('div');
+subVal.className = 'value';
+subVal.textContent = f.pieces[i];
+sub.appendChild(emptyLabel);
+sub.appendChild(subVal);
+extraContainer.appendChild(sub);
+}
+infoContainer.appendChild(extraContainer);
+}
+});
+
+// Scroll to info (smooth)
+infoContainer.scrollIntoView({ behavior: 'smooth' });
 }
 
-// Throttle QR scanning to every 3 animation frames (about 20 scans/sec)
-let scanFrameCount = 0;
+// Continuous scanning
 function scanLoop(){
-  if(!isScanning) return;
-  scanFrameCount++;
-  if(scanFrameCount % 3 === 0 && video.readyState === video.HAVE_ENOUGH_DATA){
-    const canvas = document.createElement('canvas');
-    canvas.width = video.videoWidth;
-    canvas.height = video.videoHeight;
-    const ctx = canvas.getContext('2d');
-    ctx.drawImage(video,0,0,canvas.width,canvas.height);
-    const imageData = ctx.getImageData(0,0,canvas.width,canvas.height);
-    const code = jsQR(imageData.data, imageData.width, imageData.height);
-    if(code && code.data!==lastPatientCode){
-      lastPatientCode = code.data;
-      const fields = parsePatientData(code.data);
-      if(fields.length>0) displayPatientInfo(fields);
-    }
-  }
-  requestAnimationFrame(scanLoop);
+if(video.readyState === video.HAVE_ENOUGH_DATA){
+const canvas = document.createElement('canvas');
+canvas.width = video.videoWidth;
+canvas.height = video.videoHeight;
+const ctx = canvas.getContext('2d');
+ctx.drawImage(video,0,0,canvas.width,canvas.height);
+const imageData = ctx.getImageData(0,0,canvas.width,canvas.height);
+const code = jsQR(imageData.data,imageData.width,imageData.height);
+if(code && code.data !== lastPatientCode){
+lastPatientCode = code.data;
+const fields = parsePatientData(code.data);
+if(fields.length > 0) displayPatientInfo(fields);
+}
+}
+requestAnimationFrame(scanLoop);
 }
 
-// Start scanning
-function startScanning() {
-  isScanning = true;
-  scanLoop();
+// Start camera by deviceId or facingMode
+async function startCameraByDevice(deviceId){
+try {
+// stop any existing tracks first to avoid camera conflicts
+if (video.srcObject) {
+const tracks = video.srcObject.getTracks();
+tracks.forEach(t => t.stop());
 }
 
-// Stop scanning
-function stopScanning() {
-  isScanning = false;
+let constraints = {};
+if (deviceId) {
+constraints = { video: { deviceId: { exact: deviceId } } };
+} else {
+// Force environment (back) camera if available
+constraints = { video: { facingMode: { exact: "environment" } } };
+}
+const stream = await navigator.mediaDevices.getUserMedia(constraints);
+video.srcObject = stream;
+} catch (err) {
+console.error("Camera access failed:", err);
+// fallback: try without exact facingMode (some browsers don't allow exact)
+try {
+const fallbackStream = await navigator.mediaDevices.getUserMedia({ video: true });
+video.srcObject = fallbackStream;
+} catch (e) {
+alert("Camera access failed: " + (err.message || err));
+}
+}
 }
 
-// Start camera by deviceId with enhanced constraints
-async function startCameraByDevice(deviceId, facingMode = null){
-  try{
-    stopCurrentStream();
-    let constraints = {
-      video: {
-        width: { ideal: 1280 },
-        height: { ideal: 1280 },
-        aspectRatio: { ideal: 1.0 }
-      }
-    };
-    if (deviceId) {
-      constraints.video.deviceId = { exact: deviceId };
-    } else if (facingMode) {
-      constraints.video.facingMode = { ideal: facingMode };
-    }
-    const stream = await navigator.mediaDevices.getUserMedia(constraints);
-    currentStream = stream;
-    video.srcObject = stream;
-    return true;
-  }catch(err){
-    console.error("Camera access failed:", err);
-    return false;
-  }
-}
-
-// Get camera devices with better detection
-async function getCameraDevices() {
-  try {
-    const devices = await navigator.mediaDevices.enumerateDevices();
-    return devices.filter(d => d.kind === 'videoinput');
-  } catch (err) {
-    console.error("Failed to enumerate devices:", err);
-    return [];
-  }
-}
-
-// Find best camera (prioritize back camera)
-function findBestCamera(devices) {
-  // Look for back camera
-  const backCamera = devices.find(d => 
-    d.label.toLowerCase().includes('back') || 
-    d.label.toLowerCase().includes('rear') ||
-    d.label.toLowerCase().includes('environment')
-  );
-  if (backCamera) return backCamera;
-  // Fallback to first camera
-  return devices[0] || null;
-}
-
-// Show user notification
-function showNotification(message, type = 'info') {
-  const notification = document.createElement('div');
-  notification.style.cssText = `
-    position: fixed;
-    top: 20px;
-    left: 50%;
-    transform: translateX(-50%);
-    background: ${type === 'error' ? 'rgba(255, 0, 0, 0.8)' : 'rgba(0, 150, 255, 0.8)'};
-    color: white;
-    padding: 12px 20px;
-    border-radius: 8px;
-    z-index: 1000;
-    font-size: 14px;
-    backdrop-filter: blur(10px);
-  `;
-  notification.textContent = message;
-  document.body.appendChild(notification);
-  setTimeout(() => {
-    if (notification.parentNode) {
-      notification.parentNode.removeChild(notification);
-    }
-  }, 3000);
-}
-
-// Initialize camera with iOS support
+// Initialize camera
 async function initCamera(){
-  try {
-    devices = await getCameraDevices();
-    if(devices.length === 0) { 
-      showNotification("No camera found on this device", "error");
-      return; 
-    }
-    const bestCamera = findBestCamera(devices);
-    currentDeviceIndex = devices.indexOf(bestCamera);
-    // Try to start with best camera (usually back camera)
-    const success = await startCameraByDevice(bestCamera.deviceId);
-    if (!success) {
-      // Fallback: try with facingMode if deviceId failed
-      const fallbackSuccess = await startCameraByDevice(null, 'environment');
-      if (!fallbackSuccess) {
-        // Last resort: try front camera
-        const frontSuccess = await startCameraByDevice(null, 'user');
-        if (frontSuccess) {
-          showNotification("Using front camera - flip device for better QR scanning", "info");
-        } else {
-          showNotification("Camera access failed - please check permissions", "error");
-          return;
-        }
-      }
-    }
-    // Set up camera switching
-    switchBtn.style.display = devices.length > 1 ? "inline-block" : "none";
-    startScanning();
-  } catch (err) {
-    showNotification("Could not access camera. Try again.", "error");
-    startCameraBtn.style.display = "inline-block";
-  }
+try {
+devices = (await navigator.mediaDevices.enumerateDevices()).filter(d => d.kind === 'videoinput');
+} catch (e) {
+devices = [];
 }
 
-// Switch to next camera
-async function switchCamera(){
-  if(devices.length < 2) return;
-  currentDeviceIndex = (currentDeviceIndex + 1) % devices.length;
-  let nextDevice = devices[currentDeviceIndex];
-  const success = await startCameraByDevice(nextDevice.deviceId);
-  if (success) {
-    showNotification("Switched camera", "info");
-  } else {
-    showNotification("Unable to switch camera", "error");
-  }
+if(devices.length === 0){
+// Try to start camera by facingMode fallback (some browsers won't list devices until permission)
+if (isIOS) {
+tapNotice.textContent = "Tap anywhere to start camera";
+document.body.addEventListener('click', async () => {
+await startCameraByDevice(null);
+tapNotice.textContent = "";
+}, { once: true });
+} else {
+try {
+await startCameraByDevice(null);
+} catch (e) {
+alert("No camera found or access denied.");
+}
+}
+return;
 }
 
-// On page load, request camera access
-window.addEventListener('DOMContentLoaded', async () => {
-  if (navigator.mediaDevices && navigator.mediaDevices.getUserMedia) {
-    await initCamera();
-  } else {
-    showNotification("Camera not supported in this browser", "error");
-  }
-});
+if(isIOS){
+tapNotice.textContent = "Tap anywhere to start camera";
+document.body.addEventListener('click', async ()=>{
+// iOS: try environment camera
+await startCameraByDevice(null);
+tapNotice.textContent = "";
+}, {once:true});
+} else {
+// Non-iOS: try back camera by label, fallback to first
+const rear = devices.find(d=>d.label.toLowerCase().includes('back')) || devices.find(d=>d.label.toLowerCase().includes('rear')) || devices[0];
+currentDeviceIndex = devices.indexOf(rear);
+await startCameraByDevice(rear.deviceId);
+}
 
-// Handle start camera button (for permission errors)
-startCameraBtn.addEventListener('click', async () => {
-  startCameraBtn.style.display = "none";
-  await initCamera();
+// Switch camera button
+switchBtn.addEventListener('click', async ()=>{
+if(devices.length < 2) {
+// if devices list is not populated, attempt generic toggle via facingMode
+await startCameraByDevice(null);
+return;
+}
+currentDeviceIndex = (currentDeviceIndex + 1) % devices.length;
+await startCameraByDevice(devices[currentDeviceIndex].deviceId);
 });
+}
 
-// Handle camera switching
-switchBtn.addEventListener('click', async () => {
-  await switchCamera();
-});
-
-// Stop camera when navigating away
-window.addEventListener('beforeunload', () => {
-  stopCurrentStream();
-  stopScanning();
-});
+video.addEventListener('loadedmetadata', ()=>{ scanLoop(); });
+initCamera();
 </script>
+
 </body>
 </html>
