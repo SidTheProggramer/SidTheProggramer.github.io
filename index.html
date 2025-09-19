@@ -6,7 +6,6 @@
 <title>Medicare QR Scanner</title>
 <style>
   @import url('https://fonts.googleapis.com/css2?family=Roboto:wght@400;500;700&display=swap');
-
   body {
     margin: 0;
     padding: 0;
@@ -18,12 +17,10 @@
     align-items: center;
     min-height: 100vh;
   }
-
   h1 {
     margin-top: 20px;
     font-weight: 700;
   }
-
   .glass-container {
     background: rgba(255, 255, 255, 0.05);
     border-radius: 15px;
@@ -35,20 +32,19 @@
     max-width: 500px;
     width: 90%;
   }
-
   .video-container {
     position: relative;
     width: 100%;
     max-width: 300px;
     margin: 0 auto;
+    overflow: hidden;
+    border-radius: 12px;
   }
-
   .video-container::before {
     content: '';
     display: block;
     padding-bottom: 100%; /* 1:1 Aspect Ratio */
   }
-
   video {
     position: absolute;
     top: 0;
@@ -60,40 +56,28 @@
     border: 1px solid rgba(255, 255, 255, 0.2);
     background: #000;
   }
-
   .scanning-line {
     position: absolute;
-    top: 0;
     left: 0;
     right: 0;
     height: 2px;
     background: linear-gradient(90deg, transparent, #00ff00, transparent);
     box-shadow: 0 0 10px #00ff00;
-    animation: scan 2s linear infinite;
-    z-index: 10;
     border-radius: 1px;
+    z-index: 10;
+    animation: scan 2s linear infinite;
+    pointer-events: none;
   }
-
   @keyframes scan {
-    0% {
-      top: 0;
-      opacity: 1;
-    }
-    50% {
-      opacity: 0.8;
-    }
-    100% {
-      top: calc(100% - 2px);
-      opacity: 1;
-    }
+    0%   { top: 0; opacity: 1; }
+    50%  { opacity: 0.8; }
+    100% { top: calc(100% - 2px); opacity: 1; }
   }
-
   .info-container {
     display: flex;
     flex-direction: column;
     gap: 10px;
   }
-
   .field {
     background: rgba(255, 255, 255, 0.05);
     border: 1px solid rgba(255, 255, 255, 0.2);
@@ -103,19 +87,16 @@
     font-size: 16px;
     word-wrap: break-word;
   }
-
   .field span.label {
     font-weight: 500;
     color: #fff;
   }
-
   p {
     text-align: center;
     color: #aaa;
     margin-top: 8px;
     font-size: 14px;
   }
-
   #switchBtn, #startCameraBtn {
     margin-top: 10px;
     padding: 8px 12px;
@@ -127,23 +108,19 @@
     font-size: 14px;
     margin-right: 5px;
   }
-
   #startCameraBtn {
     background: rgba(0, 150, 255, 0.3);
     border: 1px solid rgba(0, 150, 255, 0.5);
   }
-
   /* Mobile optimizations */
   @media (max-width: 480px) {
     .glass-container {
       margin: 10px;
       padding: 15px 20px;
     }
-    
     .video-container {
       max-width: 280px;
     }
-    
     h1 {
       font-size: 24px;
       margin-top: 15px;
@@ -152,9 +129,7 @@
 </style>
 </head>
 <body>
-
 <h1>Medicare QR Scanner</h1>
-
 <div class="glass-container">
   <div class="video-container">
     <video id="video" autoplay playsinline></video>
@@ -164,11 +139,9 @@
   <button id="switchBtn">Switch Camera</button>
   <button id="startCameraBtn" style="display: none;">Start Camera</button>
 </div>
-
 <div class="glass-container info-container" id="patient-info">
   <h2>Patient Info:</h2>
 </div>
-
 <script src="https://cdn.jsdelivr.net/npm/jsqr@1.4.0/dist/jsQR.js"></script>
 <script>
 const video = document.getElementById('video');
@@ -176,6 +149,7 @@ const infoContainer = document.getElementById('patient-info');
 const switchBtn = document.getElementById('switchBtn');
 const startCameraBtn = document.getElementById('startCameraBtn');
 const scanningLine = document.getElementById('scanningLine');
+
 let lastPatientCode = null;
 let devices = [];
 let currentDeviceIndex = 0;
@@ -221,11 +195,12 @@ function displayPatientInfo(fields){
   infoContainer.scrollIntoView({behavior:'smooth'});
 }
 
-// Continuous QR scanning
+// Throttle QR scanning to every 3 animation frames (about 20 scans/sec)
+let scanFrameCount = 0;
 function scanLoop(){
   if(!isScanning) return;
-  
-  if(video.readyState === video.HAVE_ENOUGH_DATA){
+  scanFrameCount++;
+  if(scanFrameCount % 3 === 0 && video.readyState === video.HAVE_ENOUGH_DATA){
     const canvas = document.createElement('canvas');
     canvas.width = video.videoWidth;
     canvas.height = video.videoHeight;
@@ -259,7 +234,6 @@ function stopScanning() {
 async function startCameraByDevice(deviceId, facingMode = null){
   try{
     stopCurrentStream();
-    
     let constraints = {
       video: {
         width: { ideal: 1280 },
@@ -267,17 +241,14 @@ async function startCameraByDevice(deviceId, facingMode = null){
         aspectRatio: { ideal: 1.0 }
       }
     };
-    
     if (deviceId) {
       constraints.video.deviceId = { exact: deviceId };
     } else if (facingMode) {
       constraints.video.facingMode = { ideal: facingMode };
     }
-    
     const stream = await navigator.mediaDevices.getUserMedia(constraints);
     currentStream = stream;
     video.srcObject = stream;
-    
     return true;
   }catch(err){
     console.error("Camera access failed:", err);
@@ -304,9 +275,7 @@ function findBestCamera(devices) {
     d.label.toLowerCase().includes('rear') ||
     d.label.toLowerCase().includes('environment')
   );
-  
   if (backCamera) return backCamera;
-  
   // Fallback to first camera
   return devices[0] || null;
 }
@@ -329,7 +298,6 @@ function showNotification(message, type = 'info') {
   `;
   notification.textContent = message;
   document.body.appendChild(notification);
-  
   setTimeout(() => {
     if (notification.parentNode) {
       notification.parentNode.removeChild(notification);
@@ -341,22 +309,17 @@ function showNotification(message, type = 'info') {
 async function initCamera(){
   try {
     devices = await getCameraDevices();
-    
     if(devices.length === 0) { 
       showNotification("No camera found on this device", "error");
       return; 
     }
-
     const bestCamera = findBestCamera(devices);
     currentDeviceIndex = devices.indexOf(bestCamera);
-    
     // Try to start with best camera (usually back camera)
     const success = await startCameraByDevice(bestCamera.deviceId);
-    
     if (!success) {
       // Fallback: try with facingMode if deviceId failed
       const fallbackSuccess = await startCameraByDevice(null, 'environment');
-      
       if (!fallbackSuccess) {
         // Last resort: try front camera
         const frontSuccess = await startCameraByDevice(null, 'user');
@@ -368,63 +331,53 @@ async function initCamera(){
         }
       }
     }
-
     // Set up camera switching
-    if (devices.length > 1) {
-      switchBtn.style.display = 'inline-block';
-      switchBtn.addEventListener('click', async () => {
-        currentDeviceIndex = (currentDeviceIndex + 1) % devices.length;
-        const nextDevice = devices[currentDeviceIndex];
-        const switched = await startCameraByDevice(nextDevice.deviceId);
-        
-        if (switched) {
-          const isBack = nextDevice.label.toLowerCase().includes('back') || 
-                        nextDevice.label.toLowerCase().includes('rear');
-          showNotification(
-            `Switched to ${isBack ? 'back' : 'front'} camera`, 
-            "info"
-          );
-        }
-      });
-    } else {
-      switchBtn.style.display = 'none';
-    }
-    
+    switchBtn.style.display = devices.length > 1 ? "inline-block" : "none";
+    startScanning();
   } catch (err) {
-    console.error("Camera initialization failed:", err);
-    showNotification("Camera initialization failed", "error");
+    showNotification("Could not access camera. Try again.", "error");
+    startCameraBtn.style.display = "inline-block";
   }
 }
 
-// Initialize camera for iOS with user gesture
-async function requestCameraAccess() {
-  startCameraBtn.style.display = 'none';
-  switchBtn.style.display = 'none';
-  
-  await initCamera();
-}
-
-// Check if we need user gesture (iOS)
-function checkCameraAccess() {
-  if (isIOS()) {
-    // On iOS, show start button to trigger camera access after user gesture
-    startCameraBtn.style.display = 'inline-block';
-    switchBtn.style.display = 'none';
-    startCameraBtn.addEventListener('click', requestCameraAccess);
-    showNotification("Tap 'Start Camera' to begin scanning", "info");
+// Switch to next camera
+async function switchCamera(){
+  if(devices.length < 2) return;
+  currentDeviceIndex = (currentDeviceIndex + 1) % devices.length;
+  let nextDevice = devices[currentDeviceIndex];
+  const success = await startCameraByDevice(nextDevice.deviceId);
+  if (success) {
+    showNotification("Switched camera", "info");
   } else {
-    // On other platforms, start immediately
-    initCamera();
+    showNotification("Unable to switch camera", "error");
   }
 }
 
-video.addEventListener('loadedmetadata', () => { 
-  startScanning(); 
+// On page load, request camera access
+window.addEventListener('DOMContentLoaded', async () => {
+  if (navigator.mediaDevices && navigator.mediaDevices.getUserMedia) {
+    await initCamera();
+  } else {
+    showNotification("Camera not supported in this browser", "error");
+  }
 });
 
-// Initialize app
-checkCameraAccess();
-</script>
+// Handle start camera button (for permission errors)
+startCameraBtn.addEventListener('click', async () => {
+  startCameraBtn.style.display = "none";
+  await initCamera();
+});
 
+// Handle camera switching
+switchBtn.addEventListener('click', async () => {
+  await switchCamera();
+});
+
+// Stop camera when navigating away
+window.addEventListener('beforeunload', () => {
+  stopCurrentStream();
+  stopScanning();
+});
+</script>
 </body>
 </html>
