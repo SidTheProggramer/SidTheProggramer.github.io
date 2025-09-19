@@ -36,12 +36,56 @@
     width: 90%;
   }
 
-  video {
+  .video-container {
+    position: relative;
     width: 100%;
+    max-width: 300px;
+    margin: 0 auto;
+  }
+
+  .video-container::before {
+    content: '';
+    display: block;
+    padding-bottom: 100%; /* 1:1 Aspect Ratio */
+  }
+
+  video {
+    position: absolute;
+    top: 0;
+    left: 0;
+    width: 100%;
+    height: 100%;
+    object-fit: cover;
     border-radius: 12px;
     border: 1px solid rgba(255, 255, 255, 0.2);
-    min-height: 200px;
     background: #000;
+  }
+
+  .scanning-line {
+    position: absolute;
+    top: 0;
+    left: 0;
+    right: 0;
+    height: 2px;
+    background: linear-gradient(90deg, transparent, #00ff00, transparent);
+    box-shadow: 0 0 10px #00ff00;
+    animation: scan 2s linear infinite;
+    z-index: 10;
+    border-radius: 1px;
+  }
+
+  @keyframes scan {
+    0% {
+      top: 0;
+      opacity: 1;
+    }
+    50% {
+      opacity: 0.8;
+    }
+    100% {
+      top: calc(100% - 2px);
+      opacity: 1;
+    }
   }
 
   .info-container {
@@ -72,7 +116,7 @@
     font-size: 14px;
   }
 
-  #switchBtn {
+  #switchBtn, #startCameraBtn {
     margin-top: 10px;
     padding: 8px 12px;
     border-radius: 8px;
@@ -81,6 +125,29 @@
     color: #fff;
     cursor: pointer;
     font-size: 14px;
+    margin-right: 5px;
+  }
+
+  #startCameraBtn {
+    background: rgba(0, 150, 255, 0.3);
+    border: 1px solid rgba(0, 150, 255, 0.5);
+  }
+
+  /* Mobile optimizations */
+  @media (max-width: 480px) {
+    .glass-container {
+      margin: 10px;
+      padding: 15px 20px;
+    }
+    
+    .video-container {
+      max-width: 280px;
+    }
+    
+    h1 {
+      font-size: 24px;
+      margin-top: 15px;
+    }
   }
 </style>
 </head>
@@ -89,9 +156,13 @@
 <h1>Medicare QR Scanner</h1>
 
 <div class="glass-container">
-  <video id="video" autoplay playsinline></video>
+  <div class="video-container">
+    <video id="video" autoplay playsinline></video>
+    <div class="scanning-line" id="scanningLine"></div>
+  </div>
   <p>Point your camera at the patient's QR code</p>
   <button id="switchBtn">Switch Camera</button>
+  <button id="startCameraBtn" style="display: none;">Start Camera</button>
 </div>
 
 <div class="glass-container info-container" id="patient-info">
@@ -103,9 +174,27 @@
 const video = document.getElementById('video');
 const infoContainer = document.getElementById('patient-info');
 const switchBtn = document.getElementById('switchBtn');
+const startCameraBtn = document.getElementById('startCameraBtn');
+const scanningLine = document.getElementById('scanningLine');
 let lastPatientCode = null;
 let devices = [];
 let currentDeviceIndex = 0;
+let isScanning = false;
+let currentStream = null;
+
+// Check if device is iOS
+function isIOS() {
+  return /iPad|iPhone|iPod/.test(navigator.userAgent) || 
+         (navigator.platform === 'MacIntel' && navigator.maxTouchPoints > 1);
+}
+
+// Stop current camera stream
+function stopCurrentStream() {
+  if (currentStream) {
+    currentStream.getTracks().forEach(track => track.stop());
+    currentStream = null;
+  }
+}
 
 // Parse patient info separated by // and colon
 function parsePatientData(data) {
@@ -134,6 +223,8 @@ function displayPatientInfo(fields){
 
 // Continuous QR scanning
 function scanLoop(){
+  if(!isScanning) return;
+  
   if(video.readyState === video.HAVE_ENOUGH_DATA){
     const canvas = document.createElement('canvas');
     canvas.width = video.videoWidth;
@@ -151,36 +242,188 @@ function scanLoop(){
   requestAnimationFrame(scanLoop);
 }
 
-// Start camera by deviceId
-async function startCameraByDevice(deviceId){
+// Start scanning
+function startScanning() {
+  isScanning = true;
+  scanningLine.style.display = 'block';
+  scanLoop();
+}
+
+// Stop scanning
+function stopScanning() {
+  isScanning = false;
+  scanningLine.style.display = 'none';
+}
+
+// Start camera by deviceId with enhanced constraints
+async function startCameraByDevice(deviceId, facingMode = null){
   try{
-    const stream = await navigator.mediaDevices.getUserMedia({video:{deviceId}});
+    stopCurrentStream();
+    
+    let constraints = {
+      video: {
+        width: { ideal: 1280 },
+        height: { ideal: 1280 },
+        aspectRatio: { ideal: 1.0 }
+      }
+    };
+    
+    if (deviceId) {
+      constraints.video.deviceId = { exact: deviceId };
+    } else if (facingMode) {
+      constraints.video.facingMode = { ideal: facingMode };
+    }
+    
+    const stream = await navigator.mediaDevices.getUserMedia(constraints);
+    currentStream = stream;
     video.srcObject = stream;
+    
+    return true;
   }catch(err){
-    alert("Camera access failed: "+err);
+    console.error("Camera access failed:", err);
+    return false;
   }
 }
 
-// Initialize camera and devices
-async function initCamera(){
-  devices = (await navigator.mediaDevices.enumerateDevices()).filter(d=>d.kind==='videoinput');
-  if(devices.length===0){ alert("No camera found"); return; }
-
-  // Start rear camera if available
-  const rear = devices.find(d=>d.label.toLowerCase().includes('back')) || devices[0];
-  currentDeviceIndex = devices.indexOf(rear);
-  await startCameraByDevice(rear.deviceId);
-
-  // Switch camera button
-  switchBtn.addEventListener('click', async ()=>{
-    if(devices.length<2) return;
-    currentDeviceIndex = (currentDeviceIndex+1)%devices.length;
-    await startCameraByDevice(devices[currentDeviceIndex].deviceId);
-  });
+// Get camera devices with better detection
+async function getCameraDevices() {
+  try {
+    const devices = await navigator.mediaDevices.enumerateDevices();
+    return devices.filter(d => d.kind === 'videoinput');
+  } catch (err) {
+    console.error("Failed to enumerate devices:", err);
+    return [];
+  }
 }
 
-video.addEventListener('loadedmetadata',()=>{ scanLoop(); });
-initCamera();
+// Find best camera (prioritize back camera)
+function findBestCamera(devices) {
+  // Look for back camera
+  const backCamera = devices.find(d => 
+    d.label.toLowerCase().includes('back') || 
+    d.label.toLowerCase().includes('rear') ||
+    d.label.toLowerCase().includes('environment')
+  );
+  
+  if (backCamera) return backCamera;
+  
+  // Fallback to first camera
+  return devices[0] || null;
+}
+
+// Show user notification
+function showNotification(message, type = 'info') {
+  const notification = document.createElement('div');
+  notification.style.cssText = `
+    position: fixed;
+    top: 20px;
+    left: 50%;
+    transform: translateX(-50%);
+    background: ${type === 'error' ? 'rgba(255, 0, 0, 0.8)' : 'rgba(0, 150, 255, 0.8)'};
+    color: white;
+    padding: 12px 20px;
+    border-radius: 8px;
+    z-index: 1000;
+    font-size: 14px;
+    backdrop-filter: blur(10px);
+  `;
+  notification.textContent = message;
+  document.body.appendChild(notification);
+  
+  setTimeout(() => {
+    if (notification.parentNode) {
+      notification.parentNode.removeChild(notification);
+    }
+  }, 3000);
+}
+
+// Initialize camera with iOS support
+async function initCamera(){
+  try {
+    devices = await getCameraDevices();
+    
+    if(devices.length === 0) { 
+      showNotification("No camera found on this device", "error");
+      return; 
+    }
+
+    const bestCamera = findBestCamera(devices);
+    currentDeviceIndex = devices.indexOf(bestCamera);
+    
+    // Try to start with best camera (usually back camera)
+    const success = await startCameraByDevice(bestCamera.deviceId);
+    
+    if (!success) {
+      // Fallback: try with facingMode if deviceId failed
+      const fallbackSuccess = await startCameraByDevice(null, 'environment');
+      
+      if (!fallbackSuccess) {
+        // Last resort: try front camera
+        const frontSuccess = await startCameraByDevice(null, 'user');
+        if (frontSuccess) {
+          showNotification("Using front camera - flip device for better QR scanning", "info");
+        } else {
+          showNotification("Camera access failed - please check permissions", "error");
+          return;
+        }
+      }
+    }
+
+    // Set up camera switching
+    if (devices.length > 1) {
+      switchBtn.style.display = 'inline-block';
+      switchBtn.addEventListener('click', async () => {
+        currentDeviceIndex = (currentDeviceIndex + 1) % devices.length;
+        const nextDevice = devices[currentDeviceIndex];
+        const switched = await startCameraByDevice(nextDevice.deviceId);
+        
+        if (switched) {
+          const isBack = nextDevice.label.toLowerCase().includes('back') || 
+                        nextDevice.label.toLowerCase().includes('rear');
+          showNotification(
+            `Switched to ${isBack ? 'back' : 'front'} camera`, 
+            "info"
+          );
+        }
+      });
+    } else {
+      switchBtn.style.display = 'none';
+    }
+    
+  } catch (err) {
+    console.error("Camera initialization failed:", err);
+    showNotification("Camera initialization failed", "error");
+  }
+}
+
+// Initialize camera for iOS with user gesture
+async function requestCameraAccess() {
+  startCameraBtn.style.display = 'none';
+  switchBtn.style.display = 'none';
+  
+  await initCamera();
+}
+
+// Check if we need user gesture (iOS)
+function checkCameraAccess() {
+  if (isIOS()) {
+    // On iOS, show start button to trigger camera access after user gesture
+    startCameraBtn.style.display = 'inline-block';
+    switchBtn.style.display = 'none';
+    startCameraBtn.addEventListener('click', requestCameraAccess);
+    showNotification("Tap 'Start Camera' to begin scanning", "info");
+  } else {
+    // On other platforms, start immediately
+    initCamera();
+  }
+}
+
+video.addEventListener('loadedmetadata', () => { 
+  startScanning(); 
+});
+
+// Initialize app
+checkCameraAccess();
 </script>
 
 </body>
